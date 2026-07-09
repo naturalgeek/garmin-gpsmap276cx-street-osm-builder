@@ -19,8 +19,8 @@ on:
         description: 'Geofabrik PBF URL(s), comma-separated (same daily run if >1)'
         default: 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf'
       server_type:
-        description: 'Hetzner server type (cpx41 = 8 shared vCPU/16 GB; shared avoids the dedicated-core quota on fresh projects)'
-        default: 'cpx41'
+        description: 'Hetzner server type (cx53 = 16 shared vCPU/32 GB, current-gen Intel; cpx*/ccx* are retired or quota-blocked in nbg1)'
+        default: 'cx53'
   schedule:
     - cron: '0 3 1 * *'   # 03:00 UTC on the 1st of each month
 
@@ -89,7 +89,7 @@ jobs:
           fi
           hcloud server create \
             --name "${{ steps.label.outputs.label }}" \
-            --type "${{ github.event.inputs.server_type || 'cpx41' }}" \
+            --type "${{ github.event.inputs.server_type || 'cx53' }}" \
             --image ubuntu-24.04 \
             --location "${{ vars.HETZNER_LOCATION || 'nbg1' }}" \
             --user-data-from-file userdata.sh \
