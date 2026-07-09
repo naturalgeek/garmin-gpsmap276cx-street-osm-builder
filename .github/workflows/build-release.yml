@@ -19,8 +19,8 @@ on:
         description: 'Geofabrik PBF URL(s), comma-separated (same daily run if >1)'
         default: 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf'
       server_type:
-        description: 'Hetzner server type (cx52 = 16 shared vCPU/32 GB; shared avoids the dedicated-core quota on fresh projects)'
-        default: 'cx52'
+        description: 'Hetzner server type (cpx41 = 8 shared vCPU/16 GB; shared avoids the dedicated-core quota on fresh projects)'
+        default: 'cpx41'
   schedule:
     - cron: '0 3 1 * *'   # 03:00 UTC on the 1st of each month
 
@@ -89,7 +89,7 @@ jobs:
           fi
           hcloud server create \
             --name "${{ steps.label.outputs.label }}" \
-            --type "${{ github.event.inputs.server_type || 'cx52' }}" \
+            --type "${{ github.event.inputs.server_type || 'cpx41' }}" \
             --image ubuntu-24.04 \
             --location "${{ vars.HETZNER_LOCATION || 'nbg1' }}" \
             --user-data-from-file userdata.sh \
@@ -111,7 +111,10 @@ jobs:
       - name: Build map
         run: |
           chmod +x ci/build-map.sh preprocess-fuel-areas.sh
-          MEM=24g ci/build-map.sh "${{ github.event.inputs.pbf_url || 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf' }}"
+          # Size the JVM heap to ~75% of the VM's RAM so it fits any server type.
+          MEM="$(awk '/MemTotal/{printf "%dg", int($2/1024/1024*0.75)}' /proc/meminfo)"
+          echo "using heap $MEM"
+          MEM="$MEM" ci/build-map.sh "${{ github.event.inputs.pbf_url || 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf' }}"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
