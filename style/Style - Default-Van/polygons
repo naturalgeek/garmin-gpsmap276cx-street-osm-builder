@@ -122,17 +122,20 @@ landuse=grass [0x14 resolution 19]
 landuse=military [0x04 resolution 19]
 landuse=quarry [0x0c resolution 19]
 landuse=recreation_ground [0x14 resolution 19]
-# dedicate resolution 24 for building=* instead of related landuse=*
-# Buildings render with the firmware drop-shadow (0x10900 = internal 0x89,
-# render-class 0x6f). At 120m only LARGE buildings are drawn so the fixed-
-# offset shadow stays attached (clean relief like CN); ALL buildings get the
-# shadow at 80m and closer. Threshold in garmin-units^2 via area_size().
-# CN-matching buildings: 0x08 = darker-yellow fill (body), then 0x10900 =
-# firmware drop-shadow (relief edge). Layered via continue -> body + relief,
-# exactly like Garmin NT. Both at res 22 (levels 0+1) so shadow shows at 120m
-# too (needs the finer level-1 res 23 set in options). Probe-confirmed 2026-07-08.
-building=* & building!=no {set mkgmap:skipSizeFilter=true} [0x10900 resolution 23 continue]
-building=* & building!=no {set mkgmap:skipSizeFilter=true} [0x08 resolution 23]
+# CN-matching buildings: 0x08 = darker-yellow fill (body) + 0x10900 = firmware
+# drop-shadow relief (internal 0x89, render-class 0x6f), layered via `continue`.
+# Split by level to keep dense-metro tiles under Garmin's 16 MB RGN limit:
+#   * 80m (level 0 = res 24): keep ALL buildings (skipSizeFilter) — full detail.
+#   * 120m (level 1 = res 23): let the polygon-size-limits filter drop tiny
+#     footprints (they're sub-pixel at 120m and don't render anyway); only large
+#     buildings keep their relief. This matches NT ("darker at 120m but not
+#     always") AND removes ~the level-1 building polygons that made whole-Germany
+#     metro tiles overflow RGN. Buildings are 71% of polygons in a dense tile;
+#     the level-1 tiny ones were the wasteful, invisible majority.
+building=* & building!=no {set mkgmap:skipSizeFilter=true} [0x10900 resolution 24-24 continue]
+building=* & building!=no {set mkgmap:skipSizeFilter=true} [0x08 resolution 24-24]
+building=* & building!=no [0x10900 resolution 23-23 continue]
+building=* & building!=no [0x08 resolution 23-23]
 landuse=industrial [0x0c resolution 19-23]
 landuse=residential [0x10 resolution 19-23]
 landuse=retail [0x12 resolution 20-23]
