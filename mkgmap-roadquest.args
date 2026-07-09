@@ -24,6 +24,10 @@ name-tag-list: name,int_name,name:de,name:en
 route
 index
 make-poi-index
+# index every WORD of each name (not just the first), so German streets like
+# "Straße zum Rinderkombinat" are findable by "Rinderkombinat". Grows the MDR
+# ~20-40% but makes name search actually usable in German.
+split-name-index
 housenumbers
 process-destination
 process-exits
