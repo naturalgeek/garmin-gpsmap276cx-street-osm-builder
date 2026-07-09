@@ -1,0 +1,66 @@
+# mkgmap options for GPSMAP 276Cx, Jbm style.
+# Aligned to the upstream Jbm build.cmd's mkgmap.args (Interlaken sample).
+# build-germany-jbm.sh appends: --style-file, --bounds, --precomp-sea /
+# --generate-sea, --read-config=config.skipmdrindex,
+# --nearby-poi-rules-config, --description, --mapname, the splitter
+# template.args, and the precompiled jbm*.typ.
+
+# --- identity / TYP binding -----------------------------------------------
+# Must match the FID/ProductCode used when compiling the TYP.
+family-id: 8000
+product-id: 1
+family-name: Germany OSM Jbm
+series-name: Germany OSM
+copyright-message: Map data (c) openstreetmap.org, Layout (c) Jorisbo
+draw-priority: 20
+
+# Code page must match the TYP compile's --code-page.
+# 1252 (Windows-Latin-1) is ~25-30% smaller in the MDR than 65001 (UTF-8),
+# which directly speeds up on-device search on the 276Cx. Covers German
+# fully; rare non-Latin-1 names (Cyrillic/Greek labels) transliterate.
+code-page: 1252
+name-tag-list: name,int_name,name:de,name:en
+
+# --- routing & index ------------------------------------------------------
+route
+index
+make-poi-index
+housenumbers
+process-destination
+location-autofill: is_in,nearest
+lower-case
+
+# --- regional metadata ----------------------------------------------------
+country-name: Germany
+country-abbr: DEU
+
+# --- output ---------------------------------------------------------------
+gmapsupp
+tdbfile
+hide-gmapsupp-on-pc
+
+# --- robustness ----------------------------------------------------------
+keep-going
+check-styles
+max-jobs
+
+# --- 276Cx render-speed tuning ------------------------------------------
+# Simplifies polylines at lower zooms. Smaller file, faster render at the
+# scales we drive at. No visible change at typical driving zoom (80m-300m).
+reduce-point-density=4
+# Drops tiny polygons at lower-detail levels (sub-pixel-size anyway).
+# Spec from mkgmap docs: at res 18 polygons need size>=10 to render, at
+# res 16 size>=8, etc. res 24 always renders all (filter not applied).
+polygon-size-limits=24:12, 18:10, 16:8, 14:4, 12:2, 11:0
+
+# --- experiments (commented — enable cautiously, test on-device) --------
+# Drop unused MDR sub-indexes to shrink the search-index file further.
+# Each --no-mdr=N skips one sub-index; some are unused by the 276Cx
+# firmware but the exact set needs empirical verification per device.
+# Candidates: 4 (POI subtype names), 6 (countries), 13 (country idx),
+# 18/19/20 (lookup tables), 22 (POI x-ref). Add one at a time and verify
+# search paths still work before stacking more.
+#no-mdr=4
+
+# levels / overview-levels come from the Jbm style's 'options' file —
+# do NOT set them here.

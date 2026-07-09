@@ -1,0 +1,12 @@
+# Local Claude Code settings (may contain host/IP specifics)
+.claude/settings.local.json
+
+# Build artifacts / large binaries
+*.img
+*.osm.pbf
+*.typ
+out/
+work/
+
+# OS cruft
+.DS_Store

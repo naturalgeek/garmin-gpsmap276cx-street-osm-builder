@@ -1,0 +1,57 @@
+# mkgmap options for GPSMAP 276Cx, Petrovsk's Roadquest style.
+# Roadquest is already lean (~12 POI emit rules) so no Van declutter patcher.
+# Uses the precompiled roadquest.typ (CC-BY-SA 2.0 by Petrovsk) — included
+# in the build directly, no recompile step.
+# FID/PID inside the precompiled TYP — using observed values from the
+# binary header (FID=234, PID=1). Adjust if the on-device map shows
+# default Garmin icons (= FID mismatch).
+
+# --- identity / TYP binding -----------------------------------------------
+family-id: 234
+product-id: 1
+family-name: Germany OSM Roadquest
+series-name: Germany OSM
+copyright-message: Map data (c) openstreetmap.org, Style (c) Petrovsk CC-BY-SA
+draw-priority: 20
+
+# --- search index optimisation (our work) ---------------------------------
+# 1252 trims MDR ~25-30% vs UTF-8; non-Latin-1 names transliterated by
+# the build script. Roadquest's options file specifies levels separately.
+code-page: 1252
+name-tag-list: name,int_name,name:de,name:en
+
+# --- routing & index ------------------------------------------------------
+route
+index
+make-poi-index
+housenumbers
+process-destination
+process-exits
+# barriers (bollards etc.) actually block routing; style sets mkgmap:car=no on them
+link-pois-to-ways
+# area-mapped fuel/shops/hospitals get POIs too (search coverage parity with CN)
+add-pois-to-areas
+# road-name-pois disabled — was adding unnamed road segments as "point"
+# entries in the Cities index and bloating MDR; address-via-street search
+# still works through the dedicated mdr7 street-name path.
+#road-name-pois
+location-autofill: is_in,nearest
+lower-case
+
+# --- regional metadata ----------------------------------------------------
+country-name: Germany
+country-abbr: DEU
+
+# --- output ---------------------------------------------------------------
+gmapsupp
+tdbfile
+hide-gmapsupp-on-pc
+
+# --- robustness ----------------------------------------------------------
+keep-going
+check-styles
+max-jobs
+
+# --- 276Cx render-speed tuning ------------------------------------------
+reduce-point-density=4
+polygon-size-limits=24:12, 18:10, 16:8, 14:4, 12:2, 11:0

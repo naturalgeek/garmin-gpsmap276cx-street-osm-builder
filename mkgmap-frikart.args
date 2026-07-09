@@ -1,0 +1,49 @@
+# mkgmap options for GPSMAP 276Cx, Frikart style.
+# Mirrors mkgmap.args but with Frikart's FID=981 binding and adds
+# --road-name-pois (streets searchable as POIs — Frikart uses this).
+# build-germany-frikart.sh appends: --style-file, --bounds,
+# --precomp-sea / --generate-sea, --read-config=config.skipmdrindex (if any),
+# --description, --mapname, the splitter template.args, and the
+# precompiled OSM_TYP_ID981-1252.typ.
+
+# --- identity / TYP binding -----------------------------------------------
+# Must match the FID/ProductCode used when compiling the TYP.
+family-id: 981
+product-id: 1
+family-name: Germany OSM Frikart
+series-name: Germany OSM
+copyright-message: Map data (c) openstreetmap.org, Style (c) Frikart.no
+draw-priority: 20
+
+# Code page must match the TYP compile's --code-page.
+# Frikart already uses 1252; same as our Jbm tuning.
+code-page: 1252
+name-tag-list: name,int_name,name:de,name:en
+
+# --- routing & index ------------------------------------------------------
+route
+index
+make-poi-index
+housenumbers
+process-destination
+road-name-pois
+location-autofill: is_in,nearest
+lower-case
+
+# --- regional metadata ----------------------------------------------------
+country-name: Germany
+country-abbr: DEU
+
+# --- output ---------------------------------------------------------------
+gmapsupp
+tdbfile
+hide-gmapsupp-on-pc
+
+# --- robustness ----------------------------------------------------------
+keep-going
+check-styles
+max-jobs
+
+# --- 276Cx render-speed tuning ------------------------------------------
+reduce-point-density=4
+polygon-size-limits=24:12, 18:10, 16:8, 14:4, 12:2, 11:0

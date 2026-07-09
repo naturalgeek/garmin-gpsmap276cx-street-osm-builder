@@ -1,0 +1,38 @@
+# mkgmap options for GPSMAP 276Cx, Petrovsk's HC-Map style.
+# HC-Map: bright colors + thick borders explicitly designed for use in
+# sunlight without screen backlight (CC-BY-SA 2.0 by Petrovsk).
+# Single tweak: drop building polygons (too noisy at driving zoom).
+# Uses the precompiled hc-map.typ as-is.
+
+family-id: 30
+product-id: 2
+family-name: Germany OSM HC-Map
+series-name: Germany OSM
+copyright-message: Map data (c) openstreetmap.org, Style (c) Petrovsk CC-BY-SA
+draw-priority: 20
+
+code-page: 1252
+name-tag-list: name,int_name,name:de,name:en
+
+route
+index
+make-poi-index
+housenumbers
+process-destination
+road-name-pois
+location-autofill: is_in,nearest
+lower-case
+
+country-name: Germany
+country-abbr: DEU
+
+gmapsupp
+tdbfile
+hide-gmapsupp-on-pc
+
+keep-going
+check-styles
+max-jobs
+
+reduce-point-density=4
+polygon-size-limits=24:12, 18:10, 16:8, 14:4, 12:2, 11:0
