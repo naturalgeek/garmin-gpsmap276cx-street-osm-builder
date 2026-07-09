@@ -24,13 +24,18 @@ Usage:  fuel-nodes-to-squares.py nodes.osm squares.osm
 
 Tuning: HALF_LAT/HALF_LON set the square half-size (~18 m => ~35 m square,
         which reads as a small labelled marker at 120m without looking like a
-        big lot). Node IDs start high (9e8) to avoid colliding with real OSM ids.
+        big lot). Synthetic IDs start at ID_BASE, which MUST be above every real
+        OSM id in the extract or splitter (keep-complete) aborts with
+        "New way id N is not higher than last id N". Whole-Germany real node ids
+        already reach ~1.4e10, so ID_BASE is set well above that (5e12).
 """
 import sys
 import xml.etree.ElementTree as ET
 
 HALF_LAT = 0.00016   # ~18 m north-south
 HALF_LON = 0.00026   # ~18 m east-west at ~52.5 N  => ~35 m square
+# Above any real OSM node/way id (Germany reaches ~1.4e10); well within int64.
+ID_BASE = 5_000_000_000_000
 
 
 def main():
@@ -50,8 +55,8 @@ def main():
         stations.append((float(nd.get("lat")), float(nd.get("lon")), am, label))
 
     node_lines, way_lines = [], []
-    nid = 900_000_000
-    wid = 900_000_000
+    nid = ID_BASE
+    wid = ID_BASE
     for lat, lon, am, label in stations:
         corners = [
             (lat + HALF_LAT, lon - HALF_LON),

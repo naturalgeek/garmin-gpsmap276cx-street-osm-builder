@@ -34,7 +34,10 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 
 WORK="${WORK:-$PWD/work}"
 OUT="${OUT:-$PWD/out/gmapsupp.img}"
-MAXNODES="${MAXNODES:-2400000}"
+MAXNODES="${MAXNODES:-1800000}"   # 1.8M: the Default-Van style is heavy per
+                                  # tile (buildings+landcover+area-POIs+fuel);
+                                  # 2.4M overflowed Garmin's 16 MB RGN limit on
+                                  # the densest Germany metro tile.
 MEM="${MEM:-6g}"
 MKGMAP_VER="${MKGMAP_VER:-r4924}"
 SPLITTER_VER="${SPLITTER_VER:-r654}"
