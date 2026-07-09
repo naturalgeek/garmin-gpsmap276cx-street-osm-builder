@@ -91,7 +91,7 @@ jobs:
             --name "${{ steps.label.outputs.label }}" \
             --type "${{ github.event.inputs.server_type || 'cx53' }}" \
             --image ubuntu-24.04 \
-            --location "${{ vars.HETZNER_LOCATION || 'nbg1' }}" \
+            --location "${{ vars.HETZNER_LOCATION || 'fsn1' }}" \
             --user-data-from-file userdata.sh \
             "${ssh_arg[@]}"
 
