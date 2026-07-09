@@ -70,6 +70,15 @@ jobs:
           RUNNER_LABEL: ${{ steps.label.outputs.label }}
         run: envsubst '${REPO_URL} ${RUNNER_TOKEN} ${RUNNER_LABEL}' < ci/runner-userdata.sh > userdata.sh
 
+      - name: Show available server types & locations
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+        run: |
+          echo "=== server types (name / cores / memory GB) ==="
+          hcloud server-type list -o columns=name,cores,memory,cpu_type
+          echo "=== locations ==="
+          hcloud location list -o columns=name,city
+
       - name: Create Hetzner VM
         env:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_TOKEN }}
@@ -82,7 +91,7 @@ jobs:
             --name "${{ steps.label.outputs.label }}" \
             --type "${{ github.event.inputs.server_type || 'cx52' }}" \
             --image ubuntu-24.04 \
-            --location nbg1 \
+            --location "${{ vars.HETZNER_LOCATION || 'nbg1' }}" \
             --user-data-from-file userdata.sh \
             "${ssh_arg[@]}"
 
