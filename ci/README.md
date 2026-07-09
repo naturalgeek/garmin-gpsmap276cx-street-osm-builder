@@ -19,7 +19,7 @@ Cloud VM and publishes it as a GitHub Release, then deletes the VM.
 ## Triggers
 
 - **Manual** (`Run workflow`): pick the `pbf_url` (default = Berlin, for cheap
-  testing) and `server_type` (default `cpx51`, shared vCPU — fresh Hetzner
+  testing) and `server_type` (default `cx52`, shared vCPU — fresh Hetzner
   projects can't allocate dedicated-core types like `ccx*` without a quota
   bump). Set `pbf_url` to
   `https://download.geofabrik.de/europe/germany/germany-latest.osm.pbf` for the
@@ -38,7 +38,7 @@ Cloud VM and publishes it as a GitHub Release, then deletes the VM.
 
 ## Cost
 
-`cpx51` is ~€0.05/hr, billed by the hour; a Berlin build is a few minutes and a
+`cx52` is ~€0.05/hr, billed by the hour; a Berlin build is a few minutes and a
 Germany build ~15–20 min, so a run costs a few cents. The VM is always deleted
 in `teardown`.
 
