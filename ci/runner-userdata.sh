@@ -37,6 +37,11 @@ sudo -u runner bash -c "cd /home/runner/actions-runner && \
     --name '${RUNNER_LABEL}' \
     --ephemeral"
 
-# Run in the background so cloud-init finishes; --ephemeral makes it exit after
-# one job. If the job never arrives, teardown deletes the VM anyway.
-sudo -u runner bash -c "cd /home/runner/actions-runner && nohup ./run.sh > /home/runner/runner.log 2>&1 &"
+# Install & start the runner as a systemd service (as user 'runner'). This is
+# essential: a plain backgrounded ./run.sh would be killed when cloud-init's
+# cloud-final.service exits (systemd KillMode=control-group). The service runs
+# independently. --ephemeral => the runner processes one job then exits; the
+# workflow's teardown then deletes the whole VM.
+cd /home/runner/actions-runner
+./svc.sh install runner
+./svc.sh start
