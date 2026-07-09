@@ -1,0 +1,125 @@
+name: build-release
+
+# Provisions an ephemeral Hetzner Cloud VM, registers it as a self-hosted
+# GitHub runner, builds the gmapsupp.img on it, publishes it as a GitHub
+# Release, then deletes the VM (always — even on failure).
+#
+# Required repo secrets:
+#   HETZNER_TOKEN   Hetzner Cloud API token (read/write).
+#   GH_RUNNER_PAT   Fine-grained PAT on THIS repo with "Administration:
+#                   read and write" (the built-in GITHUB_TOKEN cannot register
+#                   self-hosted runners).
+# Optional repo secret:
+#   HETZNER_SSH_PUBLIC_KEY   an SSH public key, attached to the VM for debugging.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pbf_url:
+        description: 'Geofabrik PBF URL(s), comma-separated (same daily run if >1)'
+        default: 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf'
+      server_type:
+        description: 'Hetzner server type (ccx33 = 8 vCPU/32 GB, good for Germany)'
+        default: 'ccx33'
+  schedule:
+    - cron: '0 3 1 * *'   # 03:00 UTC on the 1st of each month
+
+concurrency:
+  group: build-release
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.label.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: label
+        run: echo "label=hzbuild-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install hcloud CLI
+        uses: hetznercloud/setup-hcloud@v2
+
+      - name: Get runner registration token
+        id: regtoken
+        run: |
+          tok=$(curl -sfX POST \
+            -H "Authorization: Bearer ${{ secrets.GH_RUNNER_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token" \
+            | jq -r .token)
+          echo "::add-mask::$tok"
+          echo "token=$tok" >> "$GITHUB_OUTPUT"
+
+      - name: Attach SSH key (optional)
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+          SSH_PUB: ${{ secrets.HETZNER_SSH_PUBLIC_KEY }}
+        run: |
+          if [ -z "${SSH_PUB:-}" ]; then echo "no SSH key secret set; skipping"; exit 0; fi
+          printf '%s\n' "$SSH_PUB" > key.pub
+          hcloud ssh-key describe ci-runner-key >/dev/null 2>&1 \
+            || hcloud ssh-key create --name ci-runner-key --public-key-from-file key.pub
+
+      - name: Render cloud-init user-data
+        env:
+          REPO_URL: https://github.com/${{ github.repository }}
+          RUNNER_TOKEN: ${{ steps.regtoken.outputs.token }}
+          RUNNER_LABEL: ${{ steps.label.outputs.label }}
+        run: envsubst '${REPO_URL} ${RUNNER_TOKEN} ${RUNNER_LABEL}' < ci/runner-userdata.sh > userdata.sh
+
+      - name: Create Hetzner VM
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+        run: |
+          ssh_arg=()
+          if hcloud ssh-key describe ci-runner-key >/dev/null 2>&1; then
+            ssh_arg=(--ssh-key ci-runner-key)
+          fi
+          hcloud server create \
+            --name "${{ steps.label.outputs.label }}" \
+            --type "${{ github.event.inputs.server_type || 'ccx33' }}" \
+            --image ubuntu-24.04 \
+            --location nbg1 \
+            --user-data-from-file userdata.sh \
+            "${ssh_arg[@]}"
+
+  build:
+    needs: provision
+    runs-on: ["self-hosted", "${{ needs.provision.outputs.label }}"]
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute release tag
+        id: tag
+        run: echo "tag=map-$(date +%Y%m%d)-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build map
+        run: |
+          chmod +x ci/build-map.sh preprocess-fuel-areas.sh
+          MEM=24g ci/build-map.sh "${{ github.event.inputs.pbf_url || 'https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf' }}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          files: out/gmapsupp.img
+          fail_on_unmatched_files: true
+
+  teardown:
+    needs: [provision, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install hcloud CLI
+        uses: hetznercloud/setup-hcloud@v2
+      - name: Delete VM
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+        run: hcloud server delete "${{ needs.provision.outputs.label }}" || true
