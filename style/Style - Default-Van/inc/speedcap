@@ -1,0 +1,9 @@
+# speedcap — optional vehicle top-speed limiter (empty by default).
+#
+# Filled in at build time when VAN85 is set (see ci/build-map.sh): it caps the
+# routing road-speed class so the router never assumes a speed above the
+# vehicle's real maximum. Only LOWERS fast/unlimited roads (Autobahn, 100+);
+# roads already posted below the cap keep their (lower) speed.
+#
+# Class -> tier in inc/roadspeed:  4 = <=85 km/h, 5 = <=100 km/h.
+# Leave empty for a normal (uncapped) map.

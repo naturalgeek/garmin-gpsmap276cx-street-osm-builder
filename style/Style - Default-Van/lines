@@ -225,6 +225,8 @@ include 'inc/contour_lines';
 include 'inc/address';
 # calculate the road speed based on maxspeed tag
 include 'inc/roadspeed';
+# optional vehicle top-speed cap (empty unless VAN85 set at build time)
+include 'inc/speedcap';
 # calculate the access rules
 include 'inc/access';
                                    
