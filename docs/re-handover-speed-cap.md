@@ -13,13 +13,12 @@ compiled `gmapsupp.img`. We need the RE to tell us how the firmware router
 ## 1. Background (one paragraph)
 
 Custom OSM-derived map for the 276Cx, built with **mkgmap r4924**, no TYP
-(firmware renders standard type codes). The vehicle is a **speed-limited van**:
-absolute max ~94 km/h, realistic sustained highway ~92, typical cruising 85.
+(firmware renders standard type codes). The vehicle is a **speed-limited van** with
+a hard **maximum of 92 km/h** (it physically cannot go faster).
 We want on-device routing — both **ETA** and **fastest-route choice** — to reflect
-that ceiling instead of assuming Autobahn speeds (100–130). We did this by
-lowering the per-road **speed class** in the map. Whether our chosen cap value is
-right depends on how the firmware maps that class to an actual velocity — hence
-this handover.
+that ceiling instead of assuming Autobahn speeds (100–130), and crucially to
+**never assume a speed the van cannot reach**. We did this by lowering the per-road
+**speed class** in the map. See §5 for the final cap decision and its rationale.
 
 ---
 
@@ -108,18 +107,28 @@ bytes for a specific road on request.)
 
 ---
 
-## 5. Why this matters for our choice
+## 5. Cap decision — FINAL: cap ≤ class 4
 
-Speed is stored as a **discrete 0–7 class**, so we can't encode "exactly 85." Our
-two realistic options are:
+Speed is stored as a **discrete 0–7 class**, so we can't encode "exactly 92." The
+decision is settled by a hard principle, **not** by which class is numerically
+closest: *the router must never assume a speed the van cannot physically reach (92
+km/h).* Against the standard Garmin/mkgmap class speeds (§7):
 
-- **Cap at class 4** — models fast roads as "≤85"; matches the van's *typical* 85
-  and gives conservative ETAs. (What we shipped.)
-- **Cap at class 5** — models them as "≤100"; matches the van's *max* 92–94 but
-  ETAs run optimistic.
+- **class 5 ≈ 95–100 km/h → EXCLUDED** — exceeds the 92 km/h max. It would plan
+  ETAs around a speed the van can't hold (arrive late) and route onto fast roads
+  expecting ~97 km/h it can't do. Impossible for this vehicle.
+- **class 4 ≈ 72–80 km/h → the correct cap** — the highest class that stays *within*
+  the vehicle's real capability (≤ 92).
 
-Knowing the firmware's actual km/h for classes 4 and 5 lets us pick correctly
-instead of guessing. Changing the cap is a one-character edit + rebuild.
+Consequence, accepted by design: class 4 **under-estimates** the van's true 92 (the
+classes jump 80 → 97 with nothing between), so **ETAs run conservative** (arrive a
+bit early). That is the correct failure mode.
+
+The earlier "cap-4 vs cap-5" question is therefore closed — cap-5 is out on
+principle. The two-map ETA test (§8.A) is now only used to **quantify how
+pessimistic** the ETAs are (class-4 ≈ 80 → ~13% slow; ≈ 72 → ~22% slow), not to
+change the cap. Getting closer to 92 than class 4 allows would require finer speed
+granularity than Garmin's 8 classes — i.e. a firmware change — which is not worth it.
 
 ---
 
@@ -159,11 +168,25 @@ boot). Exhaustive static scans (u8/u16/i32/f32 + xref-by-address + ETA-unit-cons
 values needs **dynamic tracing** (breakpoint the cost function on-device, read the live base
 pointer). No fixed ROM address to quote.
 
-**Best available answer (INFERRED — standard Garmin model, NOT firmware-confirmed):**
-RoadSpeed class 0–7 ≈ **{5, 20, 40, 60–70, 80–90, 100–110, 120, >120} km/h**.
-- ⇒ **class 4 ≈ 80–90 km/h** — which *matches your "≤85" intent*, so **cap-at-4 is probably right**.
-- ⇒ **class 5 ≈ 100–110 km/h** — cap-at-5 would model ~100 (optimistic for a 92–94 van).
-Treat these as the model, not measured values.
+**Best available answer (standard Garmin/mkgmap class speeds — the documented community
+model, NOT confirmed for the 276Cx firmware).** Garmin defines these in mph (US-origin), so
+km/h are rounded; sources vary by ±5 at classes 3–5:
+
+| class | mph | km/h | typical road |
+|---|---|---|---|
+| 0 | 3 | ~5 | walking / parking aisle |
+| 1 | 15 | ~20 | residential |
+| 2 | 25 | ~40 | urban street |
+| 3 | 35 | ~55–60 | secondary |
+| 4 | ~45–50 | **~72–80** | main road |
+| 5 | 60 | **~95–100** | fast rural / expressway |
+| 6 | 70 | ~110–115 | motorway |
+| 7 | 80+/none | ~120–130+ | Autobahn / unlimited |
+
+For a **92 km/h** van: **class 5 (~95–100) exceeds the max → excluded**; **class 4 (~72–80) is
+the highest achievable class → the cap** (see §5). Class 4 under-estimates 92 (classes jump
+80 → 97), so ETAs are conservative by design. Exact 276Cx values still want the §8.A ETA test
+to quantify the conservatism.
 
 ### ★ How to get the REAL class-4 velocity yourself (definitive, no firmware RE, no flashing)
 You already have both maps (uncapped `out24`, capped `out24van85`) — **measure it via ETA**:
@@ -222,9 +245,11 @@ Uses the device's own trip readout — no need to know a road's length a priori:
    → effective **class-4 velocity = D / T**.
 3. Swap to the **uncapped** map (`out24`), same A→B, same settings. Record D, T.
    → effective **class-6/7 velocity** (sanity: should be ~120–130).
-4. **Decision rule:**
-   - class-4 velocity ≈ 80–90 km/h → **keep cap at 4** (ship as-is).
-   - class-4 velocity ≲ 75 km/h → **switch to cap 5** (rebuild with `VAN85=5`; one-char change).
+4. **Interpretation** — the cap stays at **4 either way** (cap-5 is excluded per §5: ~97 > 92):
+   the test only quantifies how conservative ETAs will be.
+   - class-4 velocity ≈ 80 km/h → ETAs ~13% conservative (mild).
+   - class-4 velocity ≈ 72 km/h → ETAs ~22% conservative (safe, just noticeably early).
+   Do **not** switch to cap-5 — it assumes a speed the van can't reach.
 
 ### B. Route-*choice* check (your Q2 — road-class hierarchy)
 On the capped map, route a trip where a shorter non-Autobahn alternative exists. Observe whether it
@@ -237,8 +262,10 @@ still forces the Autobahn.
 
 ### C. What we shipped
 `VAN85=4` capped Germany map built (`out24van85`, family-id 234, 0 dropped tiles). It also carries
-the word-search index (`split-name-index`) and all landcover/building styling. Cap value is a build
-toggle (`VAN85=<class>`), so cap-5 is a one-line rebuild if the test says so.
+the word-search index (`split-name-index`) and all landcover/building styling. Cap is a build toggle
+(`VAN85=<class>`); for **this** van it stays at **4** per the §5 final decision (cap-5 excluded on
+principle — it assumes ~97 km/h the van can't reach). The toggle's other values exist only for a
+different vehicle with a different top speed, not as a tuning knob for this one.
 
 ### D. Open item back to you (optional, only if the ETA test is ambiguous)
 If D/T comes out weird (e.g. class 4 and class 6 measure the *same* velocity — would suggest the
